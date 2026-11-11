@@ -11,6 +11,9 @@ namespace KarimBusSimulator
         public Text gearText;
         public Text fuelText;
         public Text routeText;
+        public Text passengerText;
+        public RouteSystem routeSystem;
+        public PassengerSystem passengerSystem;
 
         private void Update()
         {
@@ -41,7 +44,14 @@ namespace KarimBusSimulator
 
             if (routeText != null)
             {
-                routeText.text = "Route: Dar es Salaam -> Arusha";
+                routeText.text = routeSystem == null
+                    ? "Dar es Salaam -> Arusha"
+                    : routeSystem.IsRouteComplete ? "ARRIVED: Arusha" : "Next stop: " + routeSystem.NextStopName;
+            }
+
+            if (passengerText != null && passengerSystem != null)
+            {
+                passengerText.text = "Passengers: " + passengerSystem.boardedPassengers + " / " + passengerSystem.busCapacity;
             }
         }
     }

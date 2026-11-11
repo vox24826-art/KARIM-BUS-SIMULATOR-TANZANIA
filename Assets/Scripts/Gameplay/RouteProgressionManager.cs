@@ -35,7 +35,7 @@ namespace KarimBusSimulator
 
             routes = new List<RouteDefinition>
             {
-                new RouteDefinition { routeId = "DAR_ES_SALAAM_TO_ARUSHA", routeName = "Dar es Salaam -> Arusha", fromCity = "Dar es Salaam", toCity = "Arusha", unlockDriverLevel = 1, distanceKm = 550f, unlocked = true, completed = false },
+                new RouteDefinition { routeId = "DAR_ES_SALAAM_TO_ARUSHA", routeName = "Dar es Salaam -> Arusha", fromCity = "Dar es Salaam", toCity = "Arusha", unlockDriverLevel = 1, distanceKm = 640f, unlocked = true, completed = false },
                 new RouteDefinition { routeId = "DAR_ES_SALAAM_TO_MOROGORO", routeName = "Dar es Salaam -> Morogoro", fromCity = "Dar es Salaam", toCity = "Morogoro", unlockDriverLevel = 1, distanceKm = 200f, unlocked = false, completed = false },
                 new RouteDefinition { routeId = "MOROGORO_TO_DODOMA", routeName = "Morogoro -> Dodoma", fromCity = "Morogoro", toCity = "Dodoma", unlockDriverLevel = 2, distanceKm = 300f, unlocked = false, completed = false },
                 new RouteDefinition { routeId = "DODOMA_TO_ARUSHA", routeName = "Dodoma -> Arusha", fromCity = "Dodoma", toCity = "Arusha", unlockDriverLevel = 3, distanceKm = 400f, unlocked = false, completed = false }

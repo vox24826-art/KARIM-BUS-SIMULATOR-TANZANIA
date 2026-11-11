@@ -19,6 +19,10 @@ namespace KarimBusSimulator
         public int currentStopIndex = 0;
 
         public event Action<string> OnStopReached;
+        public event Action OnRouteCompleted;
+
+        public string NextStopName => currentStopIndex < routeStops.Count ? routeStops[currentStopIndex].name : "Arusha reached";
+        public bool IsRouteComplete => currentStopIndex >= routeStops.Count;
 
         private void Update()
         {
@@ -32,16 +36,22 @@ namespace KarimBusSimulator
                 return;
             }
 
-            if (Vector3.Distance(bus.transform.position, routeStops[currentStopIndex].position) < 18f)
+            RouteStop stop = routeStops[currentStopIndex];
+            if (Vector3.Distance(bus.transform.position, stop.position) < 12f && bus.SpeedKmh < 5f && bus.doorsOpen)
             {
-                var reachedStop = routeStops[currentStopIndex].name;
+                var reachedStop = stop.name;
                 OnStopReached?.Invoke(reachedStop);
                 if (passengerSystem != null)
                 {
-                    passengerSystem.OnStopReached(reachedStop);
+                    passengerSystem.OnStopReached(reachedStop, currentStopIndex == routeStops.Count - 1);
                 }
 
                 currentStopIndex++;
+                bus.ToggleDoorState();
+                if (IsRouteComplete)
+                {
+                    OnRouteCompleted?.Invoke();
+                }
             }
         }
 
@@ -49,11 +59,11 @@ namespace KarimBusSimulator
         {
             routeStops = new List<RouteStop>
             {
-                new RouteStop { name = "Dar es Salaam", position = new Vector3(0f, 0f, 0f) },
-                new RouteStop { name = "Morogoro", position = new Vector3(0f, 0f, 170f) },
-                new RouteStop { name = "Dodoma", position = new Vector3(0f, 0f, 360f) },
-                new RouteStop { name = "Manyara", position = new Vector3(0f, 0f, 560f) },
-                new RouteStop { name = "Arusha", position = new Vector3(0f, 0f, 760f) }
+                new RouteStop { name = "Dar es Salaam", position = new Vector3(-4.5f, 0f, 0f) },
+                new RouteStop { name = "Morogoro", position = new Vector3(-4.5f, 0f, 170f) },
+                new RouteStop { name = "Dodoma", position = new Vector3(-4.5f, 0f, 360f) },
+                new RouteStop { name = "Babati", position = new Vector3(-4.5f, 0f, 560f) },
+                new RouteStop { name = "Arusha", position = new Vector3(-4.5f, 0f, 760f) }
             };
         }
     }

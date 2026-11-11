@@ -13,15 +13,17 @@ namespace KarimBusSimulator
         }
 
         [Header("Vehicle Tuning")]
-        public float maxForwardSpeed = 120f;
-        public float reverseSpeed = 25f;
-        public float acceleration = 24f;
-        public float brakeForce = 38f;
-        public float steeringAngle = 32f;
+        public float maxForwardSpeed = 105f;
+        public float reverseSpeed = 18f;
+        public float acceleration = 2.4f;
+        public float brakeForce = 6.5f;
+        public float steeringAngle = 30f;
         public float steeringSensitivity = 1f;
-        public float maxFuel = 120f;
-        public float fuelConsumption = 0.2f;
-        public float massKg = 7000f;
+        public float maxFuel = 300f;
+        public float fuelConsumption = 0.32f;
+        public float massKg = 14000f;
+        public float wheelbase = 6.2f;
+        public float lateralGrip = 4f;
 
         [Header("Status")]
         public bool isHandbrakeOn;
@@ -42,6 +44,12 @@ namespace KarimBusSimulator
         [SerializeField] private TransmissionMode transmission = TransmissionMode.Drive;
 
         private Rigidbody rb;
+        private float touchSteeringInput;
+        private float touchThrottleInput;
+        private float touchBrakeInput;
+        private float keyboardSteeringInput;
+        private float keyboardThrottleInput;
+        private float keyboardBrakeInput;
 
         public float SpeedKmh => Mathf.Abs(Vector3.Dot(rb.velocity, transform.forward)) * 3.6f;
         public float Fuel => fuel;
@@ -53,14 +61,19 @@ namespace KarimBusSimulator
         {
             rb = GetComponent<Rigidbody>();
             rb.mass = massKg;
-            rb.drag = 0.08f;
-            rb.angularDrag = 1.2f;
+            rb.drag = 0.12f;
+            rb.angularDrag = 2f;
+            rb.interpolation = RigidbodyInterpolation.Interpolate;
+            rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             fuel = maxFuel;
         }
 
         private void Update()
         {
             ReadKeyboardFallback();
+            steeringInput = Mathf.Abs(touchSteeringInput) > 0.01f ? touchSteeringInput : keyboardSteeringInput;
+            throttleInput = Mathf.Max(touchThrottleInput, keyboardThrottleInput);
+            brakeInput = Mathf.Max(touchBrakeInput, keyboardBrakeInput);
             UpdateEngineRpm();
 
             if (fuel <= 0f)
@@ -71,27 +84,29 @@ namespace KarimBusSimulator
 
             if (Mathf.Abs(throttleInput) > 0.05f || Mathf.Abs(brakeInput) > 0.05f)
             {
-                fuel = Mathf.Max(0f, fuel - (fuelConsumption * (1f + SpeedKmh / 20f)) * Time.deltaTime);
+                float fuelPerHour = fuelConsumption * Mathf.Max(SpeedKmh, 10f) * (1f + throttleInput * 0.35f);
+                fuel = Mathf.Max(0f, fuel - fuelPerHour / 3600f * Time.deltaTime);
             }
         }
 
         private void FixedUpdate()
         {
-            float forwardSpeed = Vector3.Dot(rb.velocity, transform.forward);
-            float steeringFactor = Mathf.Clamp01(Mathf.Abs(forwardSpeed) / 12f);
-
-            if (Mathf.Abs(steeringInput) > 0.01f)
+            Vector3 localVelocity = transform.InverseTransformDirection(rb.velocity);
+            if (Mathf.Abs(steeringInput) > 0.01f && Mathf.Abs(localVelocity.z) > 0.5f)
             {
-                float turnAmount = steeringInput * steeringAngle * steeringSensitivity * steeringFactor * Time.fixedDeltaTime * 2.2f;
-                Quaternion rotationDelta = Quaternion.Euler(0f, turnAmount, 0f);
+                float steeringRadians = steeringInput * steeringAngle * steeringSensitivity * Mathf.Deg2Rad;
+                float yawRate = localVelocity.z / Mathf.Max(1f, wheelbase) * Mathf.Tan(steeringRadians);
+                Quaternion rotationDelta = Quaternion.Euler(0f, yawRate * Mathf.Rad2Deg * Time.fixedDeltaTime, 0f);
                 rb.MoveRotation(rb.rotation * rotationDelta);
             }
 
+            float forwardLimit = maxForwardSpeed / 3.6f;
+            float reverseLimit = reverseSpeed / 3.6f;
             if (transmission == TransmissionMode.Reverse)
             {
                 if (throttleInput > 0.05f && fuel > 0f)
                 {
-                    rb.AddForce(-transform.forward * acceleration * throttleInput * 0.9f, ForceMode.Acceleration);
+                    rb.AddForce(-transform.forward * acceleration * throttleInput * 0.65f, ForceMode.Acceleration);
                 }
             }
             else if (transmission == TransmissionMode.Drive)
@@ -104,39 +119,36 @@ namespace KarimBusSimulator
 
             if (brakeInput > 0.05f)
             {
-                rb.AddForce(-transform.forward * brakeForce * brakeInput, ForceMode.Acceleration);
+                if (rb.velocity.sqrMagnitude > 0.04f)
+                {
+                    rb.AddForce(-rb.velocity.normalized * brakeForce * brakeInput, ForceMode.Acceleration);
+                }
             }
 
+            rb.AddForce(-transform.right * localVelocity.x * lateralGrip, ForceMode.Acceleration);
             if (isHandbrakeOn)
             {
-                rb.velocity = Vector3.Lerp(rb.velocity, Vector3.zero, Time.fixedDeltaTime * 0.8f);
+                rb.velocity = Vector3.Lerp(rb.velocity, Vector3.zero, Time.fixedDeltaTime * 1.8f);
             }
 
-            float maxSpeed = transmission == TransmissionMode.Reverse ? reverseSpeed : maxForwardSpeed;
-            Vector3 localVelocity = transform.InverseTransformDirection(rb.velocity);
-            if (localVelocity.z > maxSpeed / 3.6f && transmission == TransmissionMode.Drive)
-            {
-                rb.velocity = Vector3.Lerp(rb.velocity, transform.forward * (maxSpeed / 3.6f), Time.fixedDeltaTime * 1.5f);
-            }
-            else if (localVelocity.z < -reverseSpeed / 3.6f && transmission == TransmissionMode.Reverse)
-            {
-                rb.velocity = Vector3.Lerp(rb.velocity, -transform.forward * (reverseSpeed / 3.6f), Time.fixedDeltaTime * 1.5f);
-            }
+            localVelocity = transform.InverseTransformDirection(rb.velocity);
+            localVelocity.z = Mathf.Clamp(localVelocity.z, -reverseLimit, forwardLimit);
+            rb.velocity = transform.TransformDirection(localVelocity);
         }
 
         public void SetThrottle(float value)
         {
-            throttleInput = Mathf.Clamp01(value);
+            touchThrottleInput = Mathf.Clamp01(value);
         }
 
         public void SetBrake(float value)
         {
-            brakeInput = Mathf.Clamp01(value);
+            touchBrakeInput = Mathf.Clamp01(value);
         }
 
         public void SetSteering(float value)
         {
-            steeringInput = Mathf.Clamp(value, -1f, 1f);
+            touchSteeringInput = Mathf.Clamp(value, -1f, 1f);
         }
 
         public void SetHandbrake(bool value)
@@ -223,9 +235,10 @@ namespace KarimBusSimulator
         {
             if (Application.isEditor || Application.platform == RuntimePlatform.WindowsEditor || Application.platform == RuntimePlatform.LinuxEditor)
             {
-                throttleInput = Mathf.Clamp01(Mathf.Max(throttleInput, Input.GetAxis("Vertical")));
-                brakeInput = Input.GetKey(KeyCode.Space) ? 1f : 0f;
-                steeringInput = Input.GetAxis("Horizontal");
+                float verticalInput = Input.GetAxis("Vertical");
+                keyboardThrottleInput = Mathf.Clamp01(verticalInput);
+                keyboardBrakeInput = Input.GetKey(KeyCode.Space) ? 1f : Mathf.Clamp01(-verticalInput);
+                keyboardSteeringInput = Input.GetAxis("Horizontal");
 
                 if (Input.GetKeyDown(KeyCode.R))
                 {
@@ -251,6 +264,12 @@ namespace KarimBusSimulator
                 {
                     isHandbrakeOn = !isHandbrakeOn;
                 }
+            }
+            else
+            {
+                keyboardThrottleInput = 0f;
+                keyboardBrakeInput = 0f;
+                keyboardSteeringInput = 0f;
             }
         }
 

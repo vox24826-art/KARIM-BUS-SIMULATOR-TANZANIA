@@ -8,18 +8,30 @@ namespace KarimBusSimulator
         public int boardedPassengers = 0;
         public int totalTrips = 0;
         public float satisfaction = 84f;
+        public int busCapacity = 48;
+        public int passengersPerStop = 6;
 
         public void OnStopReached(string stopName)
+        {
+            OnStopReached(stopName, false);
+        }
+
+        public void OnStopReached(string stopName, bool destination)
         {
             if (string.IsNullOrEmpty(stopName))
             {
                 return;
             }
 
-            if (waitingPassengers > 0)
+            if (destination)
             {
-                boardedPassengers = Mathf.Min(boardedPassengers + 1, waitingPassengers);
-                waitingPassengers = Mathf.Max(0, waitingPassengers - 1);
+                boardedPassengers = 0;
+            }
+            else if (waitingPassengers > 0)
+            {
+                int boarding = Mathf.Min(passengersPerStop, waitingPassengers, busCapacity - boardedPassengers);
+                boardedPassengers += boarding;
+                waitingPassengers -= boarding;
             }
 
             totalTrips++;
